@@ -160,32 +160,136 @@
 
 ---
 
-## 🔨 Phase 6: The "Build-It" Phase (Hands-On Code Additions)
+## 🧪 Phase 6: Testing & Quality Assurance (Mastering Flutter Testing)
+
+*In professional open-source and GSoC projects, writing tests is mandatory for any PR. Learn how the 4 tiers of Flutter testing work in Zplit.*
+
+### 🔍 Overview of the Flutter Testing Pyramid
+1. **Unit Tests (`flutter_test`):** Test pure Dart business logic, mathematical debt formulas, and models with zero UI or device dependencies. Fast (milliseconds).
+2. **BLoC Tests (`bloc_test` + `mocktail`):** Test state transition streams. Verifies that dispatching an Event results in the exact sequence of expected States.
+3. **Database DAO Tests (`drift` in-memory):** Test SQLite schema queries and CRUD operations in an isolated temporary in-memory database (`NativeDatabase.memory()`) that wipes clean after each test.
+4. **Widget Tests (`testWidgets`):** Test UI components in a headless Flutter engine without launching an Android emulator. Verifies widget rendering, layout, and user taps.
+
+---
+
+### 📝 Hands-On Testing Checklist:
+
+- [ ] **6.1 Study BLoC Unit Testing (`bloc_test` & `mocktail`):**
+  - Open and read `test/features/users/presentation/user_bloc_test.dart`.
+  - Notice the 4-part structure of a BLoC test:
+    ```dart
+    blocTest<UserBloc, UserState>(
+      'emits [UserLoading, UserLoaded] when getAllUsers succeeds',
+      build: () {
+        // 1. Mock dependencies (Arrange)
+        when(() => mockUserRepository.getAllUsers()).thenAnswer((_) async => tUsers);
+        return userBloc;
+      },
+      act: (bloc) => bloc.add(LoadAllUsers()), // 2. Trigger event (Act)
+      expect: () => [isA<UserLoading>(), isA<UserLoaded>()], // 3. Assert states (Assert)
+      verify: (_) {
+        // 4. Verify mock interaction
+        verify(() => mockUserRepository.getAllUsers()).called(1);
+      },
+    );
+    ```
+  - *Exercise:* Open `test/features/balances/presentation/balances_bloc_test.dart` and trace how `MockBalanceRepository` is used to simulate database failures.
+
+- [ ] **6.2 Study In-Memory Database Testing (Drift):**
+  - Open `test/core/databases/test_database.dart`.
+  - See how `createTestDb()` constructs an `AppDatabase` backed by `NativeDatabase.memory()`:
+    ```dart
+    AppDatabase createTestDb() => AppDatabase.forTesting(NativeDatabase.memory());
+    ```
+  - Open `test/core/databases/users_dao_test.dart`.
+  - Notice `setUp()` creates a clean in-memory database, tests insert and query methods, and `tearDown()` immediately closes it.
+  - *Exercise:* Open `test/core/databases/transactions_dao_test.dart` and see how transactions are queried by public key.
+
+- [ ] **6.3 Study Widget Testing (`WidgetTester`):**
+  - Open `test/users/widgets/friend_tile_test.dart`.
+  - Notice the core widget testing primitives:
+    * `await tester.pumpWidget(widget)` — Renders the widget in the headless testing canvas.
+    * `await tester.pump()` — Triggers a single animation frame.
+    * `await tester.pumpAndSettle()` — Repeatedly pumps frames until all animations, navigations, and timers finish.
+    * `find.text('Alice')` or `find.byType(FriendTile)` — Locates widgets in the widget tree.
+    * `expect(find.text('Alice'), findsOneWidget)` — Verifies existence.
+    * `await tester.tap(find.byType(InkWell))` — Simulates a real user touch interaction.
+
+- [ ] **6.4 Write Your First Unit Test (Debt Split Math):**
+  - Create a new test file: `test/transaction/split_calculation_test.dart`.
+  - Write test cases for equal group splitting:
+    ```dart
+    import 'package:flutter_test/flutter_test.dart';
+
+    void main() {
+      group('Split Calculation Engine', () {
+        test('calculates equal splits correctly for 3 participants', () {
+          const double totalAmount = 300.0;
+          const int participantCount = 3;
+          final double sharePerPerson = totalAmount / participantCount;
+
+          expect(sharePerPerson, equals(100.0));
+        });
+
+        test('handles odd cent division without losing pennies', () {
+          const int totalPaise = 1000; // ₹10.00 in paise
+          const int participantCount = 3;
+          final int baseShare = totalPaise ~/ participantCount; // 333
+          final int remainder = totalPaise % participantCount;  // 1
+
+          expect(baseShare * participantCount + remainder, equals(totalPaise));
+        });
+      });
+    }
+    ```
+  - Run your test: `flutter test test/transaction/split_calculation_test.dart`.
+
+- [ ] **6.5 Essential Test Commands to Master:**
+  - Run all tests across the entire project:
+    ```bash
+    flutter test
+    ```
+  - Run a specific test file:
+    ```bash
+    flutter test test/features/users/presentation/user_bloc_test.dart
+    ```
+  - Run tests matching a specific description or group:
+    ```bash
+    flutter test --plain-name "LoadAllUsers"
+    ```
+  - Run tests with code coverage output:
+    ```bash
+    flutter test --coverage
+    ```
+
+---
+
+## 🔨 Phase 7: The "Build-It" Phase (Hands-On Code Additions)
 
 *Start modifying and adding real functionality.*
 
-- [ ] **6.1 Fix the Custom Split Hardcoding:**
+- [ ] **7.1 Fix the Custom Split Hardcoding:**
   - Open `lib/ui/transaction/widgets/expense.dart` (around line 214).
   - Notice that `case 'Custom': return -(totalAmount / 2);` is hardcoded.
   - Add a simple dialog or slider allowing the user to enter their exact share.
-- [ ] **6.2 Tap-to-Open Group Details:**
+- [ ] **7.2 Tap-to-Open Group Details:**
   - In `lib/ui/users/widgets/home_Screen.dart` (line 659), find the group `ListTile`.
   - Add an `onTap:` callback to navigate to a group details view.
-- [ ] **6.3 Clean Up Legacy Dead Folders:**
+- [ ] **7.3 Clean Up Legacy Dead Folders:**
   - Verify that `lib/data/transactions/` and `lib/ui/transaction/view_models/` can be safely deleted once all references point to `view_model/`.
   - Remove their exclusions in `analysis_options.yaml` and run `flutter analyze`.
 
 ---
 
-## 🏆 Phase 7: GSoC Proposal & Community Phase
+## 🏆 Phase 8: GSoC Proposal & Community Phase
 
-- [ ] **7.1 Join Community Channels:**
+- [ ] **8.1 Join Community Channels:**
   - Join the Stability Nexus Discord and AOSSIE Telegram (links in `maintainers.md`).
   - Introduce yourself in the `#introductions` or `#zplit` channels.
-- [ ] **7.2 Submit Your First Small PR:**
-  - Fix a small UI overflow, replace opaque empty-state images with high-res transparent assets, add the notification screen, or clean up lints.
+- [ ] **8.2 Submit Your First Small PR:**
+  - Fix a small UI overflow, replace opaque empty-state images with high-res transparent assets, add the notification screen, write missing unit/widget tests, or clean up lints.
   - Mentors will immediately notice your name and PR quality.
-- [ ] **7.3 Draft Your GSoC Proposal (Feb–March):**
+- [ ] **8.3 Draft Your GSoC Proposal (Feb–March):**
   - Title: *Multi-Party Group Splitting Engine & P2P Sync Protocol for Zplit*.
   - Include:
     - Relational schema redesign for multi-user splits.
